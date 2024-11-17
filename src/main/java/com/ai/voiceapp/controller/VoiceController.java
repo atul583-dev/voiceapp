@@ -1,16 +1,15 @@
 package com.ai.voiceapp.controller;
 
-import com.ai.voiceapp.service.VoiceService;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.openai.OpenAiAudioSpeechModel;
-import org.springframework.ai.openai.OpenAiAudioSpeechOptions;
-import org.springframework.ai.openai.OpenAiAudioTranscriptionModel;
-import org.springframework.ai.openai.OpenAiImageModel;
+import org.springframework.ai.openai.*;
 import org.springframework.ai.openai.api.OpenAiAudioApi;
 import org.springframework.ai.openai.audio.speech.SpeechPrompt;
 import org.springframework.ai.openai.audio.speech.SpeechResponse;
+import org.springframework.ai.openai.audio.transcription.AudioTranscriptionPrompt;
+import org.springframework.ai.openai.audio.transcription.AudioTranscriptionResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -57,5 +56,25 @@ public class VoiceController {
                                 .filename("whatever.mp3")
                                 .build().toString())
                 .body(byteArrayResource);
+    }
+
+    @GetMapping("audio-to-text")
+    public String generateTranscription() {
+
+        OpenAiAudioTranscriptionOptions options
+                = OpenAiAudioTranscriptionOptions.builder()
+                .withLanguage("es")
+                .withResponseFormat(OpenAiAudioApi.TranscriptResponseFormat.SRT)
+                .withTemperature(0f)
+                .build();
+
+        AudioTranscriptionPrompt prompt
+                = new AudioTranscriptionPrompt(
+                new FileSystemResource("/voiceapp/src/main/resources/harvard.wav"),
+                options);
+
+        AudioTranscriptionResponse response = openAiAudioTranscriptionModel.call(prompt);
+
+        return response.getResult().getOutput();
     }
 }
