@@ -1,47 +1,61 @@
 package com.ai.voiceapp.controller;
 
 import com.ai.voiceapp.service.VoiceService;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.openai.OpenAiAudioSpeechModel;
+import org.springframework.ai.openai.OpenAiAudioSpeechOptions;
+import org.springframework.ai.openai.OpenAiAudioTranscriptionModel;
+import org.springframework.ai.openai.OpenAiImageModel;
+import org.springframework.ai.openai.api.OpenAiAudioApi;
+import org.springframework.ai.openai.audio.speech.SpeechPrompt;
+import org.springframework.ai.openai.audio.speech.SpeechResponse;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/voice")
 public class VoiceController {
 
     @Autowired
-    private VoiceService voiceService;
+    private OpenAiImageModel openAiImageModel;
 
-    // Endpoint to handle audio input
-    @PostMapping("/process")
-    public ResponseEntity<byte[]> processVoice(@RequestParam("audio") MultipartFile audioFile) {
+    @Autowired
+    private ChatModel chatModel;
 
-        try {
-            byte[] audioData = audioFile.getBytes();
+    @Autowired
+    private OpenAiAudioTranscriptionModel openAiAudioTranscriptionModel;
 
-            // Step 1: Convert Voice to Text
-            String transcript = voiceService.convertVoiceToText(audioData);
+    @Autowired
+    private OpenAiAudioSpeechModel openAiAudioSpeechModel;
 
-            System.out.println("Voice to Text Response: " + transcript);
+    @GetMapping("/text-to-audio/{prompt}")
+    public ResponseEntity<Resource> generateAudio(@PathVariable("prompt") String prompt) {
+        OpenAiAudioSpeechOptions options
+                = OpenAiAudioSpeechOptions.builder()
+                .withModel("tts-1")
+                .withSpeed(1.0f)
+                .withVoice(OpenAiAudioApi.SpeechRequest.Voice.NOVA)
+                .build();
 
-/*            // Step 2: Analyze Text and Generate a Response
-            String responseText = voiceService.analyzeText(transcript);
+        SpeechPrompt speechPrompt
+                = new SpeechPrompt(prompt,options);
 
-            // Step 3: Convert Response Text to Voice
-            byte[] voiceResponse = voiceService.convertTextToVoice(responseText);
+        SpeechResponse response = openAiAudioSpeechModel.call(speechPrompt);
 
-            // Return the generated voice response
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Content-Type", "audio/mpeg");*/
-            //return new ResponseEntity<>(voiceResponse, headers, HttpStatus.OK);
-            return null;
+        byte[] responseBytes = response.getResult().getOutput();
 
-        } catch (IOException e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        ByteArrayResource byteArrayResource = new ByteArrayResource(responseBytes);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentLength(byteArrayResource.contentLength())
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename("whatever.mp3")
+                                .build().toString())
+                .body(byteArrayResource);
     }
 }

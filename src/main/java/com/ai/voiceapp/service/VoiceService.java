@@ -1,16 +1,18 @@
 package com.ai.voiceapp.service;
 
+/*
 import com.google.cloud.speech.v1p1beta1.*;
 import com.google.protobuf.ByteString;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
+*/
 
-@Service
+//@Service
 public class VoiceService {
 
-    private SpeechClient speechClient;
+    /*private SpeechClient speechClient;
     final private RecognitionConfig recognitionConfig = RecognitionConfig.newBuilder()
             .setEncoding(RecognitionConfig.AudioEncoding.MP3).setLanguageCode("en-US").setSampleRateHertz(16000).build();
 
@@ -41,5 +43,5 @@ public class VoiceService {
             System.out.println("Exception : " + e.getMessage());
         }
         return textResponse;
-    }
+    }*/
 }
