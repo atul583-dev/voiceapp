@@ -10,12 +10,15 @@ import org.springframework.ai.openai.audio.transcription.AudioTranscriptionRespo
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @RestController
-@RequestMapping("/api/voice")
 public class VoiceController {
 
     @Autowired
@@ -32,20 +35,15 @@ public class VoiceController {
 
     @GetMapping("/text-to-audio/{prompt}")
     public ResponseEntity<Resource> generateAudio(@PathVariable("prompt") String prompt) {
-        OpenAiAudioSpeechOptions options
-                = OpenAiAudioSpeechOptions.builder()
+        OpenAiAudioSpeechOptions options = OpenAiAudioSpeechOptions.builder()
                 .withModel("tts-1")
                 .withSpeed(1.0f)
                 .withVoice(OpenAiAudioApi.SpeechRequest.Voice.NOVA)
                 .build();
 
-        SpeechPrompt speechPrompt
-                = new SpeechPrompt(prompt,options);
-
+        SpeechPrompt speechPrompt = new SpeechPrompt(prompt,options);
         SpeechResponse response = openAiAudioSpeechModel.call(speechPrompt);
-
         byte[] responseBytes = response.getResult().getOutput();
-
         ByteArrayResource byteArrayResource = new ByteArrayResource(responseBytes);
 
         return ResponseEntity.ok()
@@ -58,23 +56,26 @@ public class VoiceController {
                 .body(byteArrayResource);
     }
 
-    @GetMapping("audio-to-text")
-    public String generateTranscription() {
+    @PostMapping("audio-to-text")
+    public String generateTranscription(@RequestParam("file") MultipartFile file) throws IOException {
 
-        OpenAiAudioTranscriptionOptions options
-                = OpenAiAudioTranscriptionOptions.builder()
-                .withLanguage("es")
+        System.out.println("This is the test");
+        // Configure transcription options
+        OpenAiAudioTranscriptionOptions options = OpenAiAudioTranscriptionOptions.builder()
+                .withLanguage("en")
                 .withResponseFormat(OpenAiAudioApi.TranscriptResponseFormat.SRT)
                 .withTemperature(0f)
                 .build();
 
-        AudioTranscriptionPrompt prompt
-                = new AudioTranscriptionPrompt(
-                new FileSystemResource("/voiceapp/src/main/resources/harvard.wav"),
+        // Use the uploaded file as the resource for transcription
+        AudioTranscriptionPrompt prompt = new AudioTranscriptionPrompt(new InputStreamResource(file.getInputStream()),
                 options);
 
+        // Call the transcription model
         AudioTranscriptionResponse response = openAiAudioTranscriptionModel.call(prompt);
+        String audioText = response.getResult().getOutput();
 
+        System.out.println("Response : " + response.getResult().getOutput());
         return response.getResult().getOutput();
     }
 }

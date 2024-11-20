@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Capture</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .output {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+<h1>Voice Capture and Send</h1>
+<button id="start-button">Start Recording</button>
+<button id="stop-button" disabled>Stop Recording</button>
+<div class="output" id="output"></div>
+
+<script>
+        const startButton = document.getElementById('start-button');
+        const stopButton = document.getElementById('stop-button');
+        const output = document.getElementById('output');
+
+        let mediaRecorder;
+        let audioChunks = [];
+
+        startButton.addEventListener('click', async () => {
+            output.textContent = "Recording...";
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
+                const audioFile = new File([audioBlob], "recording.mp3", { type: 'audio/mpeg' });
+
+                output.textContent = "Sending recording to server...";
+                const formData = new FormData();
+                formData.append("file", audioFile);
+
+                try {
+                    const response = await fetch('http://localhost:8080/audio-to-text', {
+                        method: 'POST',
+                        body: formData,
+                    });
+                    const result = await response.json();
+                    output.textContent = `Server Response: ${result.message}`;
+                } catch (error) {
+                    output.textContent = `Error: ${error.message}`;
+                }
+            };
+
+            mediaRecorder.start();
+            startButton.disabled = true;
+            stopButton.disabled = false;
+        });
+
+        stopButton.addEventListener('click', () => {
+            mediaRecorder.stop();
+            startButton.disabled = false;
+            stopButton.disabled = true;
+        });
+    </script>
+</body>
+</html>
