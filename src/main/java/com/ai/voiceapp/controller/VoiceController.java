@@ -33,8 +33,7 @@ public class VoiceController {
     @Autowired
     private OpenAiAudioSpeechModel openAiAudioSpeechModel;
 
-    @GetMapping("/text-to-audio/{prompt}")
-    public ResponseEntity<Resource> generateAudio(@PathVariable("prompt") String prompt) {
+    public ResponseEntity<Resource> generateAudio(String prompt) {
         OpenAiAudioSpeechOptions options = OpenAiAudioSpeechOptions.builder()
                 .withModel("tts-1")
                 .withSpeed(1.0f)
@@ -57,13 +56,13 @@ public class VoiceController {
     }
 
     @PostMapping("audio-to-text")
-    public String generateTranscription(@RequestParam("file") MultipartFile file) throws IOException {
+    public ResponseEntity<Resource> generateTranscription(@RequestParam("file") MultipartFile file) throws IOException {
 
         System.out.println("This is the test");
         // Configure transcription options
         OpenAiAudioTranscriptionOptions options = OpenAiAudioTranscriptionOptions.builder()
                 .withLanguage("en")
-                .withResponseFormat(OpenAiAudioApi.TranscriptResponseFormat.SRT)
+                .withResponseFormat(OpenAiAudioApi.TranscriptResponseFormat.TEXT)
                 .withTemperature(0f)
                 .build();
 
@@ -75,7 +74,10 @@ public class VoiceController {
         AudioTranscriptionResponse response = openAiAudioTranscriptionModel.call(prompt);
         String audioText = response.getResult().getOutput();
 
-        System.out.println("Response : " + response.getResult().getOutput());
-        return response.getResult().getOutput();
+        System.out.println("Audio TO Text : " + audioText);
+        String respo = chatModel.call(audioText);
+        System.out.println("Response from GPT : " + respo);
+
+        return generateAudio(respo);
     }
 }

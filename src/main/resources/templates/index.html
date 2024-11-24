@@ -27,6 +27,10 @@
             font-size: 18px;
             color: #333;
         }
+        audio {
+            margin-top: 20px;
+            width: 300px;
+        }
     </style>
 </head>
 <body>
@@ -34,55 +38,74 @@
 <button id="start-button">Start Recording</button>
 <button id="stop-button" disabled>Stop Recording</button>
 <div class="output" id="output"></div>
+<audio id="audio-player" controls hidden></audio>
 
 <script>
-        const startButton = document.getElementById('start-button');
-        const stopButton = document.getElementById('stop-button');
-        const output = document.getElementById('output');
+    const startButton = document.getElementById('start-button');
+    const stopButton = document.getElementById('stop-button');
+    const output = document.getElementById('output');
+    const audioPlayer = document.getElementById('audio-player');
 
-        let mediaRecorder;
-        let audioChunks = [];
+    let mediaRecorder;
+    let audioChunks = [];
 
-        startButton.addEventListener('click', async () => {
-            output.textContent = "Recording...";
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            audioChunks = [];
+    startButton.addEventListener('click', async () => {
+        output.textContent = "Recording...";
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
 
-            mediaRecorder.ondataavailable = event => {
-                audioChunks.push(event.data);
-            };
+        mediaRecorder.ondataavailable = event => {
+            audioChunks.push(event.data);
+        };
 
-            mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
-                const audioFile = new File([audioBlob], "recording.mp3", { type: 'audio/mpeg' });
+        startButton.disabled = true;
+        stopButton.disabled = false;
 
-                output.textContent = "Sending recording to server...";
-                const formData = new FormData();
-                formData.append("file", audioFile);
+        mediaRecorder.start();
+    });
 
-                try {
-                    const response = await fetch('http://localhost:8080/audio-to-text', {
-                        method: 'POST',
-                        body: formData,
-                    });
-                    const result = await response.json();
-                    output.textContent = `Server Response: ${result.message}`;
-                } catch (error) {
-                    output.textContent = `Error: ${error.message}`;
+    stopButton.addEventListener('click', async () => {
+        mediaRecorder.stop();
+
+        startButton.disabled = false;
+        stopButton.disabled = true;
+
+        mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
+            const audioFile = new File([audioBlob], "recording.mp3", { type: 'audio/mpeg' });
+
+            output.textContent = "Sending recording to server...";
+            const formData = new FormData();
+            formData.append("file", audioFile);
+
+            try {
+                const response = await fetch('http://localhost:8080/audio-to-text', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+
+                // Get MP3 response as a blob
+                const mp3Blob = await response.blob();
+
+                // Revoke the previous object URL if it exists
+                if (audioPlayer.src) {
+                    URL.revokeObjectURL(audioPlayer.src);
                 }
-            };
 
-            mediaRecorder.start();
-            startButton.disabled = true;
-            stopButton.disabled = false;
-        });
+                // Create a new object URL and set it to the audio player
+                const mp3Url = URL.createObjectURL(mp3Blob);
+                audioPlayer.src = mp3Url;
+                audioPlayer.hidden = false;
 
-        stopButton.addEventListener('click', () => {
-            mediaRecorder.stop();
-            startButton.disabled = false;
-            stopButton.disabled = true;
-        });
-    </script>
+                output.textContent = "Audio received. Click play to listen.";
+            } catch (error) {
+                output.textContent = `Error: ${error.message}`;
+            }
+        };
+    });
+</script>
 </body>
 </html>
